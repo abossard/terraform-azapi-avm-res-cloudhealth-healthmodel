@@ -22,7 +22,9 @@ No location allow-list is embedded because preview availability changes. Query c
 
 ## Releases and upgrade path
 
-No version has been released. The planned release path follows the AVM specifications:
+`v0.1.0` is tagged as a GitHub Release on this staging repository. It is **not** available from the Terraform Registry: registry listing requires the AVM proposal, core-team approval, and the `Azure/…` repository described above, none of which have happened. Consume this version by Git reference, not by registry `source`.
+
+The release path follows the AVM specifications:
 
 - **Pre-`1.0.0` versioning.** The first release is `v0.1.0`, and the module stays in the `v0.x.y` range until the AVM core team notifies the owner that `v1.0.0` is allowed. While below `1.0.0` the major version is never bumped: the **minor** version is bumped for breaking changes as well as for feature updates, and the **patch** version is bumped only for backward-compatible fixes. Consumers should therefore pin a minor version — for example `version = "~> 0.1.0"` — and read the release notes before moving to a new minor. See [SNFR17](https://azure.github.io/Azure-Verified-Modules/spec/SNFR17/) and [SNFR18](https://azure.github.io/Azure-Verified-Modules/spec/SNFR18/).
 - **Release tags.** Releases are cut as GitHub Releases and every tag carries the `v` prefix.
