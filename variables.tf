@@ -266,7 +266,7 @@ variable "entities" {
     }), {})
   }))
   default     = {}
-  description = "THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Health model entities keyed by arbitrary Terraform-stable keys."
+  description = "THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Health model entities keyed by arbitrary Terraform-stable keys. `look_back_window` is scheduled for removal in a future CloudHealth API version."
   nullable    = false
 
   validation {
@@ -522,7 +522,7 @@ variable "signal_definitions" {
     })
   }))
   default     = {}
-  description = "THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Reusable signal definitions keyed by arbitrary Terraform-stable keys."
+  description = "THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Reusable signal definitions keyed by arbitrary Terraform-stable keys. `look_back_window` is scheduled for removal in a future CloudHealth API version."
   nullable    = false
 
   validation {
@@ -590,6 +590,13 @@ variable "signal_definitions" {
       ]
     ]))
     error_message = "Dynamic rules require `sensitivity` (`Low`, `Medium`, or `High`) and `look_back_window` (`PT5M`, `PT15M`, `PT30M`, or `PT1H`); static rules must omit both fields."
+  }
+  validation {
+    condition = alltrue([
+      for definition in var.signal_definitions :
+      definition.evaluation_rules.unhealthy_rule.operator != "Dynamic" || definition.signal_kind == "AzureResourceMetric"
+    ])
+    error_message = "Dynamic thresholds are supported only on `AzureResourceMetric` signal definitions."
   }
 }
 

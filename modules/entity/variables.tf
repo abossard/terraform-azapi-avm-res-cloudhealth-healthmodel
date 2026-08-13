@@ -216,7 +216,7 @@ variable "signal_groups" {
     }))
   })
   default     = {}
-  description = "THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Azure metric, embedded model, PromQL, KQL, and dependency signal groups."
+  description = "THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Azure metric, embedded model, PromQL, KQL, and dependency signal groups. `look_back_window` is scheduled for removal in a future CloudHealth API version."
   nullable    = false
 
   validation {

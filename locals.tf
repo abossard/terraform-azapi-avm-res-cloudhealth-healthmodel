@@ -134,50 +134,77 @@ locals {
     length(toset([for relationship in var.relationships : relationship.name])) == length(var.relationships) &&
     length(toset([for rule in var.discovery_rules : rule.name])) == length(var.discovery_rules)
   )
-  inline_evaluation_rules = flatten([
+  iso_duration_minutes = {
+    PT1M  = 1
+    PT5M  = 5
+    PT10M = 10
+    PT15M = 15
+    PT30M = 30
+    PT1H  = 60
+    PT2H  = 120
+    PT6H  = 360
+    PT12H = 720
+    P1D   = 1440
+  }
+  inline_signals = flatten([
     for entity in var.entities : concat(
       flatten([
-        for group in entity.signal_groups.azure_resource[*] : flatten([
-          for signal in group.signals : signal.evaluation_rules == null ? [] : concat(
-            signal.evaluation_rules.degraded_rule == null ? [] : [{
-              is_unhealthy = false
-              rule         = signal.evaluation_rules.degraded_rule
-            }],
-            [{
-              is_unhealthy = true
-              rule         = signal.evaluation_rules.unhealthy_rule
-            }],
-          )
-        ])
+        for group in entity.signal_groups.azure_resource[*] : [
+          for signal in group.signals : {
+            evaluation_rules         = signal.evaluation_rules
+            is_azure_resource_metric = true
+            refresh_interval         = signal.refresh_interval
+            signal_definition_name   = signal.signal_definition_name
+            time_grain               = signal.time_grain
+          }
+        ]
       ]),
       flatten([
-        for group in entity.signal_groups.azure_monitor_workspace[*] : flatten([
-          for signal in group.signals : signal.evaluation_rules == null ? [] : concat(
-            signal.evaluation_rules.degraded_rule == null ? [] : [{
-              is_unhealthy = false
-              rule         = signal.evaluation_rules.degraded_rule
-            }],
-            [{
-              is_unhealthy = true
-              rule         = signal.evaluation_rules.unhealthy_rule
-            }],
-          )
-        ])
+        for group in entity.signal_groups.azure_monitor_workspace[*] : [
+          for signal in group.signals : {
+            evaluation_rules         = signal.evaluation_rules
+            is_azure_resource_metric = false
+            refresh_interval         = signal.refresh_interval
+            signal_definition_name   = signal.signal_definition_name
+            time_grain               = signal.time_grain
+          }
+        ]
       ]),
       flatten([
-        for group in entity.signal_groups.azure_log_analytics[*] : flatten([
-          for signal in group.signals : signal.evaluation_rules == null ? [] : concat(
-            signal.evaluation_rules.degraded_rule == null ? [] : [{
-              is_unhealthy = false
-              rule         = signal.evaluation_rules.degraded_rule
-            }],
-            [{
-              is_unhealthy = true
-              rule         = signal.evaluation_rules.unhealthy_rule
-            }],
-          )
-        ])
+        for group in entity.signal_groups.azure_log_analytics[*] : [
+          for signal in group.signals : {
+            evaluation_rules         = signal.evaluation_rules
+            is_azure_resource_metric = false
+            refresh_interval         = signal.refresh_interval
+            signal_definition_name   = signal.signal_definition_name
+            time_grain               = signal.time_grain
+          }
+        ]
       ]),
+    )
+  ])
+  signal_definition_signals = [
+    for definition in var.signal_definitions : {
+      evaluation_rules         = definition.evaluation_rules
+      is_azure_resource_metric = definition.signal_kind == "AzureResourceMetric"
+      refresh_interval         = definition.refresh_interval
+      signal_definition_name   = null
+      time_grain               = definition.time_grain
+    }
+  ]
+  all_signals = concat(local.inline_signals, local.signal_definition_signals)
+  inline_evaluation_rules = flatten([
+    for signal in local.inline_signals : signal.evaluation_rules == null ? [] : concat(
+      signal.evaluation_rules.degraded_rule == null ? [] : [{
+        is_azure_resource_metric = signal.is_azure_resource_metric
+        is_unhealthy             = false
+        rule                     = signal.evaluation_rules.degraded_rule
+      }],
+      [{
+        is_azure_resource_metric = signal.is_azure_resource_metric
+        is_unhealthy             = true
+        rule                     = signal.evaluation_rules.unhealthy_rule
+      }],
     )
   ])
   inline_evaluation_operators_valid = alltrue([
@@ -195,6 +222,27 @@ locals {
       ) : (
       evaluation.rule.sensitivity == null &&
       evaluation.rule.look_back_window == null
+    )
+  ])
+  inline_dynamic_signal_kinds_valid = alltrue([
+    for evaluation in local.inline_evaluation_rules :
+    evaluation.rule.operator != "Dynamic" || evaluation.is_azure_resource_metric
+  ])
+  signal_cadence_valid = alltrue([
+    for signal in local.all_signals :
+    try(local.iso_duration_minutes[signal.refresh_interval] <= local.iso_duration_minutes[signal.time_grain], true)
+  ])
+  dynamic_rules_exclude_degraded_valid = alltrue([
+    for signal in local.all_signals :
+    signal.evaluation_rules == null ||
+    try(signal.evaluation_rules.unhealthy_rule.operator, null) != "Dynamic" ||
+    signal.evaluation_rules.degraded_rule == null
+  ])
+  dynamic_time_grains_valid = alltrue([
+    for signal in local.all_signals :
+    signal.evaluation_rules == null || try(signal.evaluation_rules.unhealthy_rule.operator, null) != "Dynamic" ? true : (
+      (signal.time_grain != null || signal.signal_definition_name != null) &&
+      try(local.iso_duration_minutes[signal.time_grain] >= local.iso_duration_minutes["PT5M"], true)
     )
   ])
 }

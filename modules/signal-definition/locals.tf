@@ -1,4 +1,16 @@
 locals {
+  iso_duration_minutes = {
+    PT1M  = 1
+    PT5M  = 5
+    PT10M = 10
+    PT15M = 15
+    PT30M = 30
+    PT1H  = 60
+    PT2H  = 120
+    PT6H  = 360
+    PT12H = 720
+    P1D   = 1440
+  }
   degraded_rule = var.evaluation_rules.degraded_rule == null ? null : {
     lookBackWindow = var.evaluation_rules.degraded_rule.look_back_window
     operator       = var.evaluation_rules.degraded_rule.operator

@@ -37,5 +37,28 @@ resource "azapi_resource" "this" {
       )
       error_message = "AzureResourceMetric requires metric_namespace, metric_name, aggregation_type, and time_grain; query kinds require query_text."
     }
+
+    precondition {
+      condition     = var.evaluation_rules.unhealthy_rule.operator != "Dynamic" || var.signal_kind == "AzureResourceMetric"
+      error_message = "Dynamic thresholds are supported only on `AzureResourceMetric` signal definitions."
+    }
+
+    precondition {
+      condition     = var.evaluation_rules.unhealthy_rule.operator != "Dynamic" || var.evaluation_rules.degraded_rule == null
+      error_message = "A Dynamic unhealthy rule cannot be combined with a degraded rule on the same signal definition."
+    }
+
+    precondition {
+      condition     = try(local.iso_duration_minutes[var.refresh_interval] <= local.iso_duration_minutes[var.time_grain], true)
+      error_message = "`refresh_interval` must be less than or equal to `time_grain`."
+    }
+
+    precondition {
+      condition = var.evaluation_rules.unhealthy_rule.operator != "Dynamic" || (
+        var.time_grain != null &&
+        try(local.iso_duration_minutes[var.time_grain] >= local.iso_duration_minutes["PT5M"], true)
+      )
+      error_message = "A Dynamic unhealthy rule requires a `time_grain` of `PT5M` or longer."
+    }
   }
 }

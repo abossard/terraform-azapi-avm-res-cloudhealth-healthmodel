@@ -70,5 +70,25 @@ resource "azapi_resource" "this" {
       condition     = local.inline_dynamic_evaluation_rules_valid
       error_message = "Dynamic is valid only for an unhealthy rule and requires `sensitivity` (`Low`, `Medium`, or `High`) plus `look_back_window` (`PT5M`, `PT15M`, `PT30M`, or `PT1H`); static rules must omit both fields."
     }
+
+    precondition {
+      condition     = local.inline_dynamic_signal_kinds_valid
+      error_message = "Dynamic thresholds are supported only on Azure resource metric signals, so an inline Dynamic rule must sit in the `azure_resource` signal group."
+    }
+
+    precondition {
+      condition     = local.dynamic_rules_exclude_degraded_valid
+      error_message = "A Dynamic unhealthy rule cannot be combined with a degraded rule on the same signal."
+    }
+
+    precondition {
+      condition     = local.signal_cadence_valid
+      error_message = "Every signal `refresh_interval` must be less than or equal to its `time_grain`."
+    }
+
+    precondition {
+      condition     = local.dynamic_time_grains_valid
+      error_message = "A signal evaluated with a Dynamic unhealthy rule requires a `time_grain` of `PT5M` or longer."
+    }
   }
 }

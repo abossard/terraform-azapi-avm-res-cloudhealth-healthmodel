@@ -161,7 +161,7 @@ Default: `true`
 
 ### <a name="input_entities"></a> [entities](#input\_entities)
 
-Description: THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Health model entities keyed by arbitrary Terraform-stable keys.
+Description: THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Health model entities keyed by arbitrary Terraform-stable keys. `look_back_window` is scheduled for removal in a future CloudHealth API version.
 
 Type:
 
@@ -477,7 +477,7 @@ Default: `{}`
 
 ### <a name="input_signal_definitions"></a> [signal\_definitions](#input\_signal\_definitions)
 
-Description: THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Reusable signal definitions keyed by arbitrary Terraform-stable keys.
+Description: THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Reusable signal definitions keyed by arbitrary Terraform-stable keys. `look_back_window` is scheduled for removal in a future CloudHealth API version.
 
 Type:
 

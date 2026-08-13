@@ -151,3 +151,96 @@ run "invalid_dynamic_rule_enums" {
     var.evaluation_rules,
   ]
 }
+
+run "dynamic_rule_rejects_query_signal_kind" {
+  command = plan
+
+  variables {
+    signal_kind      = "LogAnalyticsQuery"
+    query_text       = "AppExceptions | summarize Count=count()"
+    metric_namespace = null
+    metric_name      = null
+    aggregation_type = null
+    time_grain       = "PT15M"
+    evaluation_rules = {
+      unhealthy_rule = {
+        operator         = "Dynamic"
+        sensitivity      = "Medium"
+        look_back_window = "PT30M"
+      }
+    }
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "refresh_interval_exceeding_time_grain" {
+  command = plan
+
+  variables {
+    refresh_interval = "PT15M"
+    time_grain       = "PT5M"
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "dynamic_rule_rejects_sub_five_minute_time_grain" {
+  command = plan
+
+  variables {
+    refresh_interval = "PT1M"
+    time_grain       = "PT1M"
+    evaluation_rules = {
+      unhealthy_rule = {
+        operator         = "Dynamic"
+        sensitivity      = "Medium"
+        look_back_window = "PT30M"
+      }
+    }
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "degraded_rule_beside_dynamic_unhealthy_rule" {
+  command = plan
+
+  variables {
+    evaluation_rules = {
+      degraded_rule = {
+        operator  = "LessThan"
+        threshold = 99
+      }
+      unhealthy_rule = {
+        operator         = "Dynamic"
+        sensitivity      = "Medium"
+        look_back_window = "PT30M"
+      }
+    }
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "unrecognised_time_grain_is_accepted" {
+  command = apply
+
+  variables {
+    time_grain       = "PT7M"
+    refresh_interval = "PT5M"
+  }
+
+  assert {
+    condition     = azapi_resource.this.body.properties.timeGrain == "PT7M"
+    error_message = "The CloudHealth API types `timeGrain` as a free-form ISO 8601 string, so a grain outside the module lookup must not be rejected."
+  }
+}

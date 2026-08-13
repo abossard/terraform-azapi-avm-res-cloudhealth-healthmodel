@@ -265,8 +265,9 @@ run "rich_typed_model" {
                 time_grain       = "PT5M"
                 evaluation_rules = {
                   unhealthy_rule = {
-                    operator  = "LessThan"
-                    threshold = 1
+                    operator         = "Dynamic"
+                    sensitivity      = "Medium"
+                    look_back_window = "PT15M"
                   }
                 }
               }
@@ -362,9 +363,8 @@ run "rich_typed_model" {
                 refresh_interval  = "PT15M"
                 evaluation_rules = {
                   unhealthy_rule = {
-                    operator         = "Dynamic"
-                    sensitivity      = "Medium"
-                    look_back_window = "PT15M"
+                    operator  = "GreaterThan"
+                    threshold = 40
                   }
                 }
               }
@@ -962,6 +962,299 @@ run "invalid_dynamic_rule_enums" {
   expect_failures = [
     var.signal_definitions,
   ]
+}
+
+run "dynamic_rule_rejects_query_signal_kind" {
+  command = plan
+
+  variables {
+    signal_definitions = {
+      invalid = {
+        name             = "dynamic-on-kql"
+        signal_kind      = "LogAnalyticsQuery"
+        query_text       = "AppExceptions | summarize Count=count()"
+        time_grain       = "PT15M"
+        refresh_interval = "PT5M"
+        evaluation_rules = {
+          unhealthy_rule = {
+            operator         = "Dynamic"
+            sensitivity      = "Medium"
+            look_back_window = "PT30M"
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    var.signal_definitions,
+  ]
+}
+
+run "dynamic_inline_rule_rejects_query_signal_group" {
+  command = plan
+
+  variables {
+    managed_identities = {
+      system_assigned = true
+    }
+    authentication_settings = {
+      system = {
+        name                  = "auth-system"
+        managed_identity_name = "SystemAssigned"
+      }
+    }
+    entities = {
+      invalid = {
+        name = "invalid-dynamic-kql"
+        signal_groups = {
+          azure_log_analytics = {
+            authentication_setting              = "auth-system"
+            log_analytics_workspace_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-health/providers/Microsoft.OperationalInsights/workspaces/law-health"
+            signals = [{
+              name              = "exceptions"
+              query_text        = "AppExceptions | summarize Count=count()"
+              value_column_name = "Count"
+              time_grain        = "PT15M"
+              refresh_interval  = "PT5M"
+              evaluation_rules = {
+                unhealthy_rule = {
+                  operator         = "Dynamic"
+                  sensitivity      = "Medium"
+                  look_back_window = "PT30M"
+                }
+              }
+            }]
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "refresh_interval_exceeding_time_grain" {
+  command = plan
+
+  variables {
+    signal_definitions = {
+      invalid = {
+        name             = "refresh-faster-than-grain"
+        signal_kind      = "AzureResourceMetric"
+        metric_namespace = "Microsoft.Storage/storageAccounts"
+        metric_name      = "Availability"
+        aggregation_type = "Average"
+        time_grain       = "PT5M"
+        refresh_interval = "PT15M"
+        evaluation_rules = {
+          unhealthy_rule = {
+            operator  = "LessThan"
+            threshold = 99
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "dynamic_rule_rejects_sub_five_minute_time_grain" {
+  command = plan
+
+  variables {
+    signal_definitions = {
+      invalid = {
+        name             = "dynamic-one-minute-grain"
+        signal_kind      = "AzureResourceMetric"
+        metric_namespace = "Microsoft.Storage/storageAccounts"
+        metric_name      = "Availability"
+        aggregation_type = "Average"
+        time_grain       = "PT1M"
+        refresh_interval = "PT1M"
+        evaluation_rules = {
+          unhealthy_rule = {
+            operator         = "Dynamic"
+            sensitivity      = "Medium"
+            look_back_window = "PT30M"
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "dynamic_inline_rule_inherits_time_grain_from_definition" {
+  command = plan
+
+  variables {
+    managed_identities = {
+      system_assigned = true
+    }
+    authentication_settings = {
+      system = {
+        name                  = "auth-system"
+        managed_identity_name = "SystemAssigned"
+      }
+    }
+    signal_definitions = {
+      cpu = {
+        name             = "cpu-def"
+        signal_kind      = "AzureResourceMetric"
+        metric_namespace = "Microsoft.Storage/storageAccounts"
+        metric_name      = "Availability"
+        aggregation_type = "Average"
+        time_grain       = "PT15M"
+        evaluation_rules = {
+          unhealthy_rule = {
+            operator  = "LessThan"
+            threshold = 99
+          }
+        }
+      }
+    }
+    entities = {
+      storage = {
+        name = "inherited-grain"
+        signal_groups = {
+          azure_resource = {
+            authentication_setting = "auth-system"
+            azure_resource_id      = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-health/providers/Microsoft.Storage/storageAccounts/sthealth"
+            signals = [{
+              name                   = "cpu"
+              signal_definition_name = "cpu-def"
+              evaluation_rules = {
+                unhealthy_rule = {
+                  operator         = "Dynamic"
+                  sensitivity      = "Medium"
+                  look_back_window = "PT30M"
+                }
+              }
+            }]
+          }
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = length(output.entity_resource_ids) == 1
+    error_message = "A Dynamic rule on a signal that inherits its time grain from a referenced definition must be accepted."
+  }
+}
+
+run "dynamic_inline_rule_requires_time_grain" {
+  command = plan
+
+  variables {
+    managed_identities = {
+      system_assigned = true
+    }
+    authentication_settings = {
+      system = {
+        name                  = "auth-system"
+        managed_identity_name = "SystemAssigned"
+      }
+    }
+    entities = {
+      invalid = {
+        name = "invalid-dynamic-no-grain"
+        signal_groups = {
+          azure_resource = {
+            authentication_setting = "auth-system"
+            azure_resource_id      = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-health/providers/Microsoft.Storage/storageAccounts/sthealth"
+            signals = [{
+              name             = "availability"
+              metric_namespace = "Microsoft.Storage/storageAccounts"
+              metric_name      = "Availability"
+              aggregation_type = "Average"
+              evaluation_rules = {
+                unhealthy_rule = {
+                  operator         = "Dynamic"
+                  sensitivity      = "Medium"
+                  look_back_window = "PT30M"
+                }
+              }
+            }]
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "degraded_rule_beside_dynamic_unhealthy_rule" {
+  command = plan
+
+  variables {
+    signal_definitions = {
+      invalid = {
+        name             = "dynamic-with-degraded"
+        signal_kind      = "AzureResourceMetric"
+        metric_namespace = "Microsoft.Storage/storageAccounts"
+        metric_name      = "Availability"
+        aggregation_type = "Average"
+        time_grain       = "PT5M"
+        evaluation_rules = {
+          degraded_rule = {
+            operator  = "LessThan"
+            threshold = 99
+          }
+          unhealthy_rule = {
+            operator         = "Dynamic"
+            sensitivity      = "Medium"
+            look_back_window = "PT30M"
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [
+    azapi_resource.this,
+  ]
+}
+
+run "unrecognised_time_grain_is_accepted" {
+  command = plan
+
+  variables {
+    signal_definitions = {
+      unusual = {
+        name             = "seven-minute-grain"
+        signal_kind      = "AzureResourceMetric"
+        metric_namespace = "Microsoft.Storage/storageAccounts"
+        metric_name      = "Availability"
+        aggregation_type = "Average"
+        time_grain       = "PT7M"
+        refresh_interval = "PT5M"
+        evaluation_rules = {
+          unhealthy_rule = {
+            operator  = "LessThan"
+            threshold = 99
+          }
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = length(output.signal_definition_resource_ids) == 1
+    error_message = "The CloudHealth API types `timeGrain` as a free-form ISO 8601 string, so a grain outside the module lookup must not be rejected."
+  }
 }
 
 run "lock_teardown_retry" {

@@ -46,7 +46,7 @@ variable "evaluation_rules" {
       look_back_window = optional(string)
     })
   })
-  description = "THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Static or dynamic degraded and unhealthy evaluation rules."
+  description = "THIS IS A VARIABLE USED FOR A PREVIEW SERVICE/FEATURE, MICROSOFT MAY NOT PROVIDE SUPPORT FOR THIS, PLEASE CHECK THE PRODUCT DOCS FOR CLARIFICATION. Static or dynamic degraded and unhealthy evaluation rules. `look_back_window` is scheduled for removal in a future CloudHealth API version."
   nullable    = false
 
   validation {
